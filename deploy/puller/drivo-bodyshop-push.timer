@@ -1,0 +1,11 @@
+[Unit]
+Description=Run the Drivo bodyshop TSD puller every hour at :15
+
+[Timer]
+OnCalendar=*-*-* *:15:00
+RandomizedDelaySec=60
+# If the server was off at :15, run once as soon as it is back.
+Persistent=true
+
+[Install]
+WantedBy=timers.target

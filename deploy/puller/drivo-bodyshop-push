@@ -1,0 +1,19 @@
+#!/bin/sh
+# Runs the TSD -> dashboard puller with the settings in /etc/drivo-bodyshop-push.env.
+# Installed to /usr/local/bin by setup.sh. Used by the systemd service and for manual runs:
+#   sudo drivo-bodyshop-push --check                 # test the TSD login / firewall only
+#   sudo drivo-bodyshop-push --out /tmp/payload.json # pull, write to a file, do not send
+#   sudo drivo-bodyshop-push                         # pull and send to the dashboard
+set -eu
+ENV_FILE="${DRIVO_PUSH_ENV:-/etc/drivo-bodyshop-push.env}"
+APP_DIR="${DRIVO_PUSH_DIR:-/opt/drivo-bodyshop-push}"
+
+if [ ! -r "$ENV_FILE" ]; then
+  echo "cannot read $ENV_FILE (run with sudo, or run setup.sh first)" >&2
+  exit 1
+fi
+set -a
+. "$ENV_FILE"
+set +a
+
+exec "$APP_DIR/venv/bin/python" -I "$APP_DIR/push_bodyshop.py" "$@"

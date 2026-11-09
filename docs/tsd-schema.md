@@ -4,9 +4,10 @@ TSD has no API. Drivo's TSD data lives in an **Azure SQL** database we can read 
 
 - Server `azure-sql-tsd-drivo.database.windows.net`, database **`42295`** (`DrivoDatabase` on the same server is empty).
 - Login `tsddrivoadmin` (full access - we only ever run SELECTs; ask TSD for a read-only login).
-- The Azure firewall allow-lists the office network and the DigitalOcean droplet `drivo-push`
-  (143.244.161.163). Cloudflare Workers have no fixed IP and cannot connect, which is why the
-  droplet pushes the data to the Worker (see README "Data flow").
+- The Azure firewall allow-lists the office network and the puller server. Cloudflare Workers have no
+  fixed IP and cannot connect, which is why the puller pushes the data to the Worker (see README "Data flow"
+  and `docs/IT-HANDOVER.md`). The old DigitalOcean droplet `drivo-push` (143.244.161.163) is retired and
+  should be removed from the firewall.
 
 ## Tables we use
 
@@ -65,5 +66,5 @@ since then, 6 out at any time. The whole extraction takes under a minute (domina
 ## Open questions for TSD / the owner
 
 - A **read-only SQL login** for the dashboard (the current one can write).
-- Whether the Azure firewall can add Cloudflare... it cannot (no fixed IP) - the droplet push stays.
+- Whether the Azure firewall can add Cloudflare... it cannot (no fixed IP) - the puller-server push stays.
 - `CraRate.CH1` is 'H' or 'C' on body shop rentals: both bill per day in practice; meaning unconfirmed.

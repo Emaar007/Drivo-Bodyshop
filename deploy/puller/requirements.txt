@@ -1,0 +1,2 @@
+# Python packages for scripts/tsd/push_bodyshop.py (the only third-party one is the SQL Server driver).
+pymssql>=2.3,<3

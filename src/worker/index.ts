@@ -136,7 +136,7 @@ app.get('/api/data', async (c) => {
 });
 
 // "Refresh now": rebuilds today's tasks and snapshot from the latest push. The push itself runs on
-// the droplet (the Worker cannot reach Azure SQL). Rate-limited to once a minute.
+// the puller server (the Worker cannot reach Azure SQL). Rate-limited to once a minute.
 let lastRefresh = 0;
 app.post('/api/refresh', async (c) => {
   if (Date.now() - lastRefresh < 60_000) return c.json({ error: 'Please wait a minute between refreshes' }, 429);

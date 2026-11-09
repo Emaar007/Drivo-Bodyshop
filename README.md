@@ -7,13 +7,13 @@ database through a small read-only push script.
 ## Data flow
 
 ```
-TSD (Azure SQL 42295)  --SELECT only-->  droplet drivo-push (cron)  --POST /api/ingest-->  Cloudflare Worker + D1  -->  React app
+TSD (Azure SQL 42295)  --SELECT only-->  puller server (hourly)    --POST /api/ingest-->  Cloudflare Worker + D1  -->  React app
                                            scripts/tsd/push_bodyshop.py                      src/worker                  src/app
 ```
 
 - **Why a push and not a Worker cron fetch:** the Azure SQL firewall allow-lists IPs. Cloudflare Workers
-  have no fixed IP, so the Worker cannot connect. The droplet (`143.244.161.163`, already allow-listed and
-  already pushing other TSD feeds) runs the extraction and posts the JSON. The Worker's own cron (07:00
+  have no fixed IP, so the Worker cannot connect. A puller server with a fixed, allow-listed IP runs the
+  extraction and posts the JSON (setup: `docs/IT-HANDOVER.md`). The Worker's own cron (07:00
   New York) only builds the day's task list and snapshot from the latest push.
 - `scripts/tsd/bodyshop.sql` is the only place that touches TSD. It contains SELECTs only; the connection
   is opened read-only; `tests/tsd-readonly.test.ts` fails if a write statement is ever added.
@@ -26,7 +26,7 @@ TSD (Azure SQL 42295)  --SELECT only-->  droplet drivo-push (cron)  --POST /api/
 src/shared/      types, dates, normalize (TSD -> Rental), rules (overdue/due soon/aging/collections), config/
 src/worker/      Hono API, D1 access, task engine, cron (index.ts, data.ts, tasks.ts, auth.ts)
 src/app/         React + Vite + Tailwind: Today, Overdue, Balances, Collections, Reports, Shift, Settings
-scripts/tsd/     bodyshop.sql (extraction), push_bodyshop.py (droplet pusher), make_sample.py (anonymiser)
+scripts/tsd/     bodyshop.sql (extraction), push_bodyshop.py (puller, see docs/IT-HANDOVER.md), make_sample.py (anonymiser)
 migrations/      D1 schema
 data/sample.json anonymised extract (real shape, fake people) used in dev/tests and with USE_SAMPLE_DATA=true
 tests/           Vitest: rule boundaries, payer/name normalisation, money, read-only guard
@@ -60,7 +60,7 @@ fresh anonymised `data/sample.json`.
 1. `npx wrangler login`
 2. `npx wrangler d1 create drivo-bodyshop` -> paste the id into `wrangler.jsonc` (`database_id`).
 3. `npm run db:migrate:remote`
-4. `npx wrangler secret put INGEST_TOKEN` (any long random string; the droplet gets the same value).
+4. `npx wrangler secret put INGEST_TOKEN` (any long random string; the puller server gets the same value).
 5. `openssl rand -hex 32 | npx wrangler secret put SESSION_SECRET` (signs the login cookie).
 6. Optionally `wrangler.jsonc` vars: `ADMIN_EMAILS` (comma-separated fallback admins). Keep `USE_SAMPLE_DATA` `"false"`.
 7. `npm run deploy`
@@ -71,18 +71,14 @@ fresh anonymised `data/sample.json`.
    the Worker, its `Cf-Access-Authenticated-User-Email` header is honoured automatically.
    `/api/ingest` skips the login and is protected by the bearer token instead.
 
-### Droplet (data push)
+### Data puller (TSD -> dashboard)
 
-```bash
-scp scripts/tsd/bodyshop.sql scripts/tsd/push_bodyshop.py root@143.244.161.163:/opt/drivo/bodyshop/
-ssh root@143.244.161.163 'apt-get install -y python3-pymssql || pip3 install pymssql'
-# /opt/drivo/.env already has TSD_SQL_PASS; add:
-#   BODYSHOP_API=https://drivo-bodyshop-dashboard.<account>.workers.dev
-#   BODYSHOP_INGEST_TOKEN=<same value as the Worker secret>
-#   TSD_SQL_DB=42295
-# /etc/cron.d/drivo, hourly (the Cpay scan takes 1-8 minutes depending on the Azure tier):
-15 * * * * root set -a; . /opt/drivo/.env; set +a; /usr/bin/python3 -I /opt/drivo/bodyshop/push_bodyshop.py >> /var/log/drivo/bodyshop.log 2>&1
-```
+The dashboard cannot reach TSD itself (Azure SQL firewall, no fixed IP on Workers), so a small server with a
+fixed IP runs `scripts/tsd/push_bodyshop.py` hourly and POSTs to `/api/ingest`. Install it with
+`sudo bash deploy/puller/setup.sh`; the full procedure (prerequisites, ingest token, testing with `--check`,
+troubleshooting) is in **[docs/IT-HANDOVER.md](docs/IT-HANDOVER.md)**.
+
+The DigitalOcean droplet `143.244.161.163` that used to do this is no longer used (third-party owned).
 
 ## Rules (src/shared/config/rules.ts)
 
@@ -110,7 +106,7 @@ ssh root@143.244.161.163 'apt-get install -y python3-pymssql || pip3 install pym
 
 ## Open items
 
-- Ask TSD for a **read-only** SQL login and switch the droplet's `.env` to it.
+- Ask TSD for a **read-only** SQL login and switch the puller's settings to it (`docs/IT-HANDOVER.md`).
 - Cloudflare Access policy and the `/api/ingest` bypass rule are set up in the Cloudflare dashboard by the owner.
 - Optional later: daily/weekly email summary (Email Routing / Resend) from the Worker cron.
 

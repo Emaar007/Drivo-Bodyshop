@@ -145,8 +145,9 @@ What differs from the brief above, and why:
 
 - **TSD data source = Azure SQL, not an API.** TSD's data is in `azure-sql-tsd-drivo.database.windows.net`, database `42295`
   (see `docs/tsd-schema.md`). The Azure firewall allow-lists IPs; Cloudflare Workers have no fixed IP, so the Worker's cron
-  cannot fetch. Instead the droplet `drivo-push` (allow-listed, already pushing other TSD feeds) runs
-  `scripts/tsd/push_bodyshop.py` on cron and POSTs the extract to `/api/ingest` (bearer `INGEST_TOKEN`). The Worker's 07:00 cron
+  cannot fetch. Instead a puller server with a fixed, allow-listed IP runs `scripts/tsd/push_bodyshop.py`
+  hourly and POSTs the extract to `/api/ingest` (bearer `INGEST_TOKEN`). Setup: `deploy/puller/` and
+  `docs/IT-HANDOVER.md`. (Until 2026-11 this was the third-party droplet `drivo-push`, 143.244.161.163; retired.) The Worker's 07:00 cron
   and "Refresh now" rebuild the day's tasks/snapshot from the latest push.
 - `RentalSource`/`TsdSource` from the brief became `scripts/tsd/bodyshop.sql` (the only TSD-touching code, SELECTs only,
   guarded by `tests/tsd-readonly.test.ts`) + `src/shared/normalize.ts` (all field mapping). `SampleFileSource` is

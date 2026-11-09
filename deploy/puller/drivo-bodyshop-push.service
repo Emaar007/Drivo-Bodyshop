@@ -1,0 +1,22 @@
+[Unit]
+Description=Drivo bodyshop dashboard: pull rentals from TSD (read-only) and send them to the dashboard
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=drivo-push
+Group=drivo-push
+ExecStart=/usr/local/bin/drivo-bodyshop-push
+# The Cpay scan takes 1-8 minutes depending on the Azure tier; leave plenty of room.
+TimeoutStartSec=45min
+# Hardening: the job only needs outbound network access.
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
