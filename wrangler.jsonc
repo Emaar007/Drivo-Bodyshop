@@ -1,0 +1,37 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "drivo-bodyshop-dashboard",
+  "main": "src/worker/index.ts",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "./dist/client",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "drivo-bodyshop",
+      // Replace with the id printed by: npx wrangler d1 create drivo-bodyshop
+      "database_id": "45557a68-7749-49fd-812e-e1fb7c2cc92c",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "triggers": {
+    // 07:00 America/New_York = 11:00 UTC (EDT) / 12:00 UTC (EST). Both fire; the
+    // handler only builds the day's tasks once per New York date.
+    "crons": ["0 11,12 * * *"]
+  },
+  "vars": {
+    "DUE_SOON_DAYS": "3",
+    "TIMEZONE": "America/New_York",
+    // When "true" the Worker serves the anonymised data/sample.json instead of the D1 snapshot
+    // (used before the first TSD push). Set to "false" in production.
+    "USE_SAMPLE_DATA": "false",
+    "ADMIN_EMAILS": "mohamed@drivo.com"
+  },
+  "observability": { "enabled": true }
+  // Secrets (wrangler secret put ...): INGEST_TOKEN (shared with scripts/tsd/push_bodyshop.py)
+}

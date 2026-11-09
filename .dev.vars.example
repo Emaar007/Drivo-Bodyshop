@@ -1,0 +1,9 @@
+# Copy to .dev.vars (gitignored). Read by `vite dev` / wrangler for local development.
+# Shared secret the TSD push script sends as "Authorization: Bearer ..." to POST /api/ingest.
+INGEST_TOKEN=dev-token
+# Set to "true" to serve the anonymised data/sample.json instead of the D1 snapshot.
+USE_SAMPLE_DATA=true
+# Signs the login cookie locally (any long random string).
+SESSION_SECRET=dev-session-secret-change-me-0123456789
+# "true" skips the login locally (you are dev@drivo.com, admin). Remove it to test the real login page.
+DEV=true

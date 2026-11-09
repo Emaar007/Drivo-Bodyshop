@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.wrangler/
+.venv/
+.cache/
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
+*.log
+.DS_Store
+node_modules/.tsbuild/
+# Real TSD extracts contain customer names and phones: never commit them.
+data/payload*.json
+scripts/tsd/*.json

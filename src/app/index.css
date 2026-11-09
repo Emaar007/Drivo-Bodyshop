@@ -1,0 +1,215 @@
+@import 'tailwindcss';
+
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+/*
+  Drivo "Operations Ledger" (PROJECT.md, PART 2).
+  Graphite surfaces tinted toward Drivo Blue, hairline rules, tabular numerals.
+  Colour is rare and only means something: blue = brand / selection / focus, red = overdue,
+  amber = due soon, green = paid / completed / collected. Payer hues only on small tags.
+  Dark is the default; "Paper" is the light theme.
+*/
+:root, :root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg-0: #080B14;
+  --bg-1: #0E1322;
+  --bg-2: #151B2E;
+  --line: #212842;
+  --line-strong: #2F3858;
+  --brand: #0D1CA4;
+  --brand-deep: #0A1480;
+  --brand-bright: #4A63F0;
+  --brand-tint: rgba(74, 99, 240, 0.14);
+  --text-0: #EEF1F9;
+  --text-1: #B3BBD3;
+  --text-2: #8690AD;
+  --danger: #E5484D;
+  --warn: #F0A33A;
+  --ok: #34B27B;
+  --info: #4A63F0;
+  --danger-bg: rgba(229, 72, 77, 0.10);
+  --warn-bg: rgba(240, 163, 58, 0.10);
+  --ok-bg: rgba(52, 178, 123, 0.10);
+  --payer-customer: #F0A33A;
+  --payer-insurance: #2EC4B6;
+  --payer-bodyshop: #A78BFA;
+  --shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  --on-brand: #ffffff;
+}
+:root[data-theme='light'] {
+  color-scheme: light;
+  --bg-0: #F4F6FB;
+  --bg-1: #FFFFFF;
+  --bg-2: #EEF1F8;
+  --line: #DDE2EF;
+  --line-strong: #C3CBE0;
+  --brand: #0D1CA4;
+  --brand-deep: #0A1480;
+  --brand-bright: #0D1CA4;
+  --brand-tint: rgba(13, 28, 164, 0.10);
+  --text-0: #0F1424;
+  --text-1: #4B5470;
+  --text-2: #646D8A;
+  --danger: #C62F34;
+  --warn: #9A5B00;
+  --ok: #1F8A5C;
+  --info: #0D1CA4;
+  --danger-bg: rgba(198, 47, 52, 0.08);
+  --warn-bg: rgba(154, 91, 0, 0.10);
+  --ok-bg: rgba(31, 138, 92, 0.10);
+  --payer-customer: #9A5B00;
+  --payer-insurance: #0F7F76;
+  --payer-bodyshop: #6B4FD6;
+  --shadow: 0 8px 24px rgba(15, 20, 36, 0.18);
+  --on-brand: #ffffff;
+}
+
+@theme inline {
+  /* new names */
+  --color-bg0: var(--bg-0);
+  --color-bg1: var(--bg-1);
+  --color-bg2: var(--bg-2);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-brand: var(--brand);
+  --color-brand-deep: var(--brand-deep);
+  --color-brand-bright: var(--brand-bright);
+  --color-brand-tint: var(--brand-tint);
+  --color-on-brand: var(--on-brand);
+  --color-text0: var(--text-0);
+  --color-text1: var(--text-1);
+  --color-text2: var(--text-2);
+  --color-danger: var(--danger);
+  --color-warn: var(--warn);
+  --color-ok: var(--ok);
+  --color-info: var(--info);
+  --color-danger-bg: var(--danger-bg);
+  --color-warn-bg: var(--warn-bg);
+  --color-ok-bg: var(--ok-bg);
+  --color-payer-customer: var(--payer-customer);
+  --color-payer-insurance: var(--payer-insurance);
+  --color-payer-bodyshop: var(--payer-bodyshop);
+  /* legacy names still used by some pages, mapped onto the same tokens */
+  --color-bg: var(--bg-0);
+  --color-surface: var(--bg-1);
+  --color-surface-2: var(--bg-2);
+  --color-border: var(--line);
+  --color-border-strong: var(--line-strong);
+  --color-ink: var(--text-0);
+  --color-ink-2: var(--text-1);
+  --color-ink-3: var(--text-2);
+  --color-accent: var(--brand-bright);
+  --color-accent-ink: var(--on-brand);
+  --color-accent-soft: var(--brand-tint);
+  --color-good: var(--ok);
+  --color-serious: var(--danger);
+  --color-critical: var(--danger);
+  --color-good-bg: var(--ok-bg);
+  --color-serious-bg: var(--danger-bg);
+  --color-critical-bg: var(--danger-bg);
+  --font-sans: 'Inter Variable', 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Inter Variable', 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'Inter Variable', 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --radius-ctl: 6px;
+  --radius-panel: 8px;
+}
+
+html, body, #root { height: 100%; }
+body {
+  background: var(--bg-0);
+  color: var(--text-0);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+}
+:focus-visible { outline: 2px solid var(--brand-bright); outline-offset: 2px; border-radius: 4px; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-property: color, background-color, border-color !important; animation: none !important; }
+}
+::selection { background: var(--brand-tint); }
+
+/* type roles: one family (Inter), roles expressed through weight, size and tabular figures */
+.num { font-family: var(--font-sans); font-weight: 500; font-variant-numeric: tabular-nums lining-nums; font-feature-settings: 'tnum' 1, 'cv11' 1; }
+.ra { font-family: var(--font-sans); font-weight: 600; letter-spacing: 0.02em; font-variant-numeric: tabular-nums; font-feature-settings: 'tnum' 1, 'ss01' 1; }
+.display { font-family: var(--font-display); font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.lbl { font-size: 11.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-2); font-weight: 500; }
+.section-title { font-size: 12.5px; letter-spacing: 0.05em; text-transform: uppercase; font-weight: 600; color: var(--text-1); }
+
+/* chart series (Recharts reads these) */
+:root { --series-1: var(--brand-bright); --series-2: var(--ok); --series-3: var(--danger); --series-4: var(--warn); --series-5: var(--payer-insurance); --series-6: var(--payer-bodyshop); --series-7: var(--text-2); --series-8: var(--text-1); --seq-1: #27305a; --seq-2: #2f3f8f; --seq-3: #3a4fc0; --seq-4: #4a63f0; --seq-5: #8a9af5; }
+:root[data-theme='light'] { --seq-1: #c9d0f1; --seq-2: #9aa7e6; --seq-3: #5d6fd0; --seq-4: #0d1ca4; --seq-5: #0a1480; }
+
+/* Buttons */
+.btn { @apply inline-flex h-8 items-center gap-1.5 rounded-[6px] border border-line-strong bg-transparent px-3 text-[13px] font-medium text-text0 hover:bg-bg2 disabled:cursor-not-allowed disabled:opacity-50 transition-colors duration-150; }
+.btn-primary { @apply border-brand bg-brand text-on-brand hover:border-brand-bright hover:bg-brand-bright; }
+.btn-sm { @apply h-7 px-2.5 text-xs; }
+.btn-ghost { @apply border-transparent text-text1 hover:text-text0; }
+.btn-danger { @apply border-danger/40 text-danger hover:bg-danger-bg; }
+.btn-icon { @apply inline-flex h-8 w-8 items-center justify-center rounded-[6px] border border-transparent text-text1 hover:bg-bg2 hover:text-text0 disabled:opacity-50 transition-colors duration-150; }
+.btn-icon-sm { @apply h-7 w-7; }
+
+/* Inputs */
+.input { @apply h-8 rounded-[6px] border border-line-strong bg-bg1 px-2.5 text-[13px] text-text0 placeholder:text-text2 focus:border-brand-bright focus:outline-none; }
+.select { @apply h-8 rounded-[6px] border border-line-strong bg-bg1 px-2 text-[13px] text-text0 focus:border-brand-bright focus:outline-none; }
+textarea.input { @apply h-auto py-1.5; }
+
+/* Panels: the one container level */
+.panel { @apply rounded-[8px] border border-line bg-bg1; }
+.sheet { @apply rounded-[8px] border border-line bg-bg1; }
+
+/* Tags: outlined, with a dot, the word spelled out */
+.tag { @apply inline-flex h-5 items-center gap-1.5 rounded-[4px] border px-1.5 text-[11px] font-medium leading-none; }
+.tag-dot { @apply inline-block h-1.5 w-1.5 rounded-full; }
+.chip { @apply inline-flex h-5 items-center gap-1 rounded-[4px] border px-1.5 text-[11px] font-medium leading-none; }
+.chip-neutral { @apply border-line-strong text-text1; }
+.chip-good { @apply border-ok/50 text-ok; }
+.chip-warn { @apply border-warn/50 text-warn; }
+.chip-serious { @apply border-danger/50 text-danger; }
+.chip-critical { @apply border-danger/50 text-danger; }
+.chip-accent { @apply border-brand-bright/50 text-brand-bright; }
+
+/* Ledger tables */
+.table { @apply w-full border-collapse text-[13px]; }
+.table th { @apply sticky top-0 z-10 h-9 border-b border-line bg-bg2 px-3 text-left text-[11.5px] font-medium uppercase tracking-[0.05em] text-text2 select-none; }
+.table td { @apply h-11 border-b border-line px-3 align-middle; }
+.table tbody tr:last-child td { border-bottom: 0; }
+.table tbody tr:hover { background: var(--bg-2); }
+.table th.sortable { cursor: pointer; }
+.table th.sortable:hover { color: var(--text-0); }
+.table td.num, .table th.num, .table td.right, .table th.right { text-align: right; }
+
+/* Task ledger */
+.ledger { @apply rounded-[8px] border border-line bg-bg1; }
+.ledger-row { @apply relative border-b border-line transition-colors duration-150; }
+.ledger-row:last-child { border-bottom: 0; }
+.ledger-row::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--line-strong); }
+.ledger-row.is-overdue::before { background: var(--danger); }
+.ledger-row.is-overdue { background: var(--danger-bg); }
+.ledger-row.is-soon::before { background: var(--warn); }
+.ledger-row.is-active::before { background: var(--brand-bright); width: 2px; }
+.ledger-row.is-done { opacity: 0.6; }
+.ledger-row.is-highlight { box-shadow: inset 0 0 0 1px var(--brand-bright); }
+
+/* The counter strip: flat cells separated by hairlines */
+.strip { @apply grid gap-0 divide-x divide-line; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+.strip > * { @apply px-4 first:pl-0 last:pr-0; }
+
+.kbd { @apply rounded border border-line-strong px-1 text-[10px] text-text2; }
+
+/* Fade in once */
+@keyframes page-in { from { opacity: 0; } to { opacity: 1; } }
+.page-in { animation: page-in 150ms ease-out both; }
+
+/* Sidebar gradient: the one gradient allowed */
+.sidebar-brand { background: linear-gradient(180deg, var(--brand) 0%, var(--brand-deep) 100%); }
+
+/* Print: blue logo on white */
+.print-only { display: none; }
+@media print {
+  .no-print { display: none !important; }
+  .print-only { display: block; }
+  body { background: #fff; color: #0F1424; font-size: 11px; }
+  :root { --bg-0: #fff; --bg-1: #fff; --bg-2: #f3f4f8; --line: #d5d9e4; --line-strong: #c0c6d6; --text-0: #0F1424; --text-1: #3d4559; --text-2: #6b7389; --brand-bright: #0D1CA4; }
+  .table th { position: static; }
+}
