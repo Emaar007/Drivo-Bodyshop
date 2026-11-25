@@ -32,7 +32,7 @@ function freshness(fetchedAt: string | null, stale: boolean): { tone: 'ok' | 'wa
   if (!fetchedAt) return { tone: 'neutral', time: '-' };
   const ageMin = (Date.now() - new Date(fetchedAt).getTime()) / 60_000;
   const time = new Date(fetchedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' });
-  return { tone: stale ? 'danger' : ageMin < 30 ? 'ok' : 'warn', time };
+  return { tone: stale ? 'danger' : ageMin < 90 ? 'ok' : 'warn', time }; // hourly extract: up to ~65 min old is normal
 }
 
 export default function App() {

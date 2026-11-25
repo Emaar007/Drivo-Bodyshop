@@ -115,7 +115,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const refreshNow = useCallback(async () => {
     const r = await api.refresh();
     await reload();
-    return r.tasksCreated ? `Refreshed, ${r.tasksCreated} new task${r.tasksCreated === 1 ? '' : 's'}` : 'Refreshed';
+    const created = r.pull.pulled === 'loaded' ? r.pull.tasksCreated + r.tasksCreated : r.tasksCreated;
+    const tasks = created ? `, ${created} new task${created === 1 ? '' : 's'}` : '';
+    switch (r.pull.pulled) {
+      case 'loaded': return `New TSD data loaded (${r.pull.rentals} rentals)${tasks}`;
+      case 'unchanged': return `Already up to date with TSD${tasks}`;
+      case 'failed': return `Could not get new TSD data: ${r.pull.error}`;
+      default: return `Refreshed${tasks}`;
+    }
   }, [reload]);
 
   const taskAction = useCallback(async (id: number, body: Record<string, unknown>) => {

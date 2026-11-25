@@ -20,9 +20,9 @@
     }
   ],
   "triggers": {
-    // 07:00 America/New_York = 11:00 UTC (EDT) / 12:00 UTC (EST). Both fire; the
-    // handler only builds the day's tasks once per New York date.
-    "crons": ["0 11,12 * * *"]
+    // Every hour at :25, five minutes after the corporate portal refreshes its TSD extract: pulls it
+    // (when the DRIVO_EXTRACT_TOKEN secret is set) and, at 07:25 New York time, builds the day's tasks.
+    "crons": ["25 * * * *"]
   },
   "vars": {
     "DUE_SOON_DAYS": "3",
@@ -33,5 +33,6 @@
     "ADMIN_EMAILS": "mohamed@drivo.com"
   },
   "observability": { "enabled": true }
-  // Secrets (wrangler secret put ...): INGEST_TOKEN (shared with scripts/tsd/push_bodyshop.py)
+  // Secrets (wrangler secret put ...): INGEST_TOKEN (for pushes to /api/ingest), SESSION_SECRET,
+  // DRIVO_EXTRACT_TOKEN (corporate portal extract; the hourly pull). Optional var DRIVO_EXTRACT_URL.
 }

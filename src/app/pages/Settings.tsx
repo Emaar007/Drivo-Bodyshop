@@ -87,8 +87,9 @@ export default function SettingsPage() {
             <div>Last fetch: <strong>{status?.fetchedAt ? formatIso(status.fetchedAt, rules.timezone) : '—'}</strong>{status?.stale && <span className="ml-2 chip chip-critical">older than 24h</span>}</div>
             <div>Records in the extract: <strong>{status?.rentalCount ?? data?.rentals.length ?? 0}</strong> (rentals since {data?.since || '—'}, plus after-rental charge records)</div>
             <div className="text-xs text-ink-3 mt-2">
-              The puller server runs <code>scripts/tsd/push_bodyshop.py</code> on a schedule: read-only SELECTs against TSD, pushed to this dashboard's <code>/api/ingest</code>.
-              "Refresh now" rebuilds today's tasks from the latest push; it cannot query TSD itself (Cloudflare has no fixed IP for the Azure firewall).
+              The corporate portal (corporate.drivo.com) runs the read-only TSD query every hour at :20. This dashboard downloads that extract every hour at :25,
+              and "Refresh now" downloads it on demand. The dashboard never queries TSD itself (Cloudflare has no fixed IP for the Azure firewall).
+              Pushes to <code>/api/ingest</code> (e.g. <code>scripts/tsd/push_bodyshop.py</code>) still work too.
             </div>
           </div>
         </Section>
