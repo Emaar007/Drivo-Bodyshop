@@ -15,7 +15,7 @@
       "binding": "DB",
       "database_name": "drivo-bodyshop",
       // Replace with the id printed by: npx wrangler d1 create drivo-bodyshop
-      "database_id": "45557a68-7749-49fd-812e-e1fb7c2cc92c",
+      "database_id": "fb962134-7b9e-4af9-8bd6-cd077e4e495d",
       "migrations_dir": "migrations"
     }
   ],
