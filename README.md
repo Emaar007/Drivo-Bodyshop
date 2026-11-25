@@ -4,6 +4,8 @@ Catches body shop rentals that are overdue or about to be due, shows who owes wh
 team's follow-up work. Runs on Cloudflare (Workers + D1, free tier); data comes from TSD's Azure SQL
 database through a small read-only push script.
 
+Live at **https://bodyshop.drivo.workers.dev** (Worker `bodyshop`, Cloudflare account subdomain `drivo`).
+
 ## Data flow
 
 ```
