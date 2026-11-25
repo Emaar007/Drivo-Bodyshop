@@ -43,6 +43,22 @@ npm run dev                             # http://localhost:5173  (Worker + local
 npm test
 ```
 
+### Real data without TSD access: `npm run tsd:pull`
+
+The corporate portal server (corporate.drivo.com) is on the TSD Azure SQL firewall. Every hour at :20 it runs this
+repo's read-only puller (`scripts/tsd/push_bodyshop.py` with `scripts/tsd/bodyshop.sql`) and keeps the latest
+result. `npm run tsd:pull` downloads it with a private token and loads it into the local dashboard:
+
+1. In `.dev.vars`, set `DRIVO_EXTRACT_TOKEN` (ask Rovsh, privately) and `USE_SAMPLE_DATA=false`.
+2. Run `npm run dev` and leave it running.
+3. In another terminal, run `npm run tsd:pull`. Run it again whenever you want the latest hour's data.
+
+`npm run tsd:pull -- --out .cache/payload.json` saves the extract instead. It holds customer names and phones, so
+delete it afterwards. The portal server runs the SQL from its own copy: if `bodyshop.sql` changes here, ask Rovsh to
+update it there too, or the extract and the dashboard code drift apart.
+
+### Pushing straight from TSD
+
 With `USE_SAMPLE_DATA=true` the app serves `data/sample.json` until a push arrives. To push real data to
 the local server (needs the TSD password and an IP on the Azure firewall, e.g. the office network):
 

@@ -7,3 +7,6 @@ USE_SAMPLE_DATA=true
 SESSION_SECRET=dev-session-secret-change-me-0123456789
 # "true" skips the login locally (you are dev@drivo.com, admin). Remove it to test the real login page.
 DEV=true
+# npm run tsd:pull: downloads the hourly TSD extract from the corporate portal server and loads it here.
+# Ask Rovsh for the token. Set USE_SAMPLE_DATA=false above to see the real data.
+DRIVO_EXTRACT_TOKEN=
