@@ -69,11 +69,17 @@ app.post('/api/auth/logout', (c) => {
 });
 
 // ---------- Everything below needs a signed-in user ----------
+// No session needed (ingest has its own bearer token). /api/auth/password is NOT here: it needs the signed-in user.
+const PUBLIC_PATHS = new Set(['/api/ingest', '/api/auth/setup', '/api/auth/login', '/api/auth/logout']);
+const MUST_CHANGE_ALLOWED = new Set(['/api/me', '/api/auth/password']);
+
 app.use('/api/*', async (c, next) => {
-  if (c.req.path === '/api/ingest' || c.req.path.startsWith('/api/auth/')) return next();
+  if (PUBLIC_PATHS.has(c.req.path)) return next();
   const settings = await loadSettings(c.env);
   const me = await identify(c.env, c.req, settings.adminEmails);
   if (!me) throw new AuthError('Not signed in');
+  // A user whose password was set by an admin must change it before using anything else.
+  if (me.mustChangePassword && !MUST_CHANGE_ALLOWED.has(c.req.path)) return c.json({ error: 'Change your password first' }, 403);
   c.set('me', me);
   await next();
 });
@@ -84,7 +90,7 @@ app.post('/api/auth/password', async (c) => {
   const me = c.get('me');
   const body = (await c.req.json()) as { current: string; next: string };
   const u = await getUser(c.env, me.email);
-  if (!u) return c.json({ error: 'No local account (signed in through Access)' }, 400);
+  if (!u) return c.json({ error: 'No local account' }, 400);
   if (!(await verifyPassword(body.current ?? '', u.password_hash))) return c.json({ error: 'Current password is wrong' }, 400);
   await updateUser(c.env, me.email, { password: body.next, mustChange: false });
   return c.json({ ok: true });

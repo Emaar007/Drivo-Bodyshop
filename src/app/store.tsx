@@ -63,6 +63,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
           }
           throw e;
         }
+        if (m.mustChangePassword) {
+          // the API serves nothing else until the password is changed; App shows the change-password card
+          setMe(m);
+          setAuth('signed_in');
+          return;
+        }
         const [s, d, t] = await Promise.all([api.status(), api.data(), api.tasks()]);
         setMe(m);
         setStatus(s);

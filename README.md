@@ -67,8 +67,10 @@ fresh anonymised `data/sample.json`.
 8. **Login**: open the URL. With no accounts yet it shows a one-time "first-time setup" form that creates the first
    admin. Admins add the rest of the team under Settings -> Users (temporary password, changed at first sign-in).
    Sessions are HMAC-signed HttpOnly cookies (7 days); 8 failed attempts per email/IP lock login for 15 minutes.
-   Cloudflare Access was the original plan but its free plan needs a card on file; if it is ever enabled in front of
-   the Worker, its `Cf-Access-Authenticated-User-Email` header is honoured automatically.
+   Cloudflare Access was the original plan but its free plan needs a card on file. Identity comes only from the
+   signed login cookie: headers such as `Cf-Access-Authenticated-User-Email` are ignored, because without Access in
+   front any client could send them. If Access is added later it is an extra gate; users still sign in here.
+   A user whose password an admin set must change it before the API serves anything else.
    `/api/ingest` skips the login and is protected by the bearer token instead.
 
 ### Data puller (TSD -> dashboard)
