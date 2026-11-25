@@ -147,8 +147,10 @@ What differs from the brief above, and why:
   (see `docs/tsd-schema.md`). The Azure firewall allow-lists IPs; Cloudflare Workers have no fixed IP, so the Worker's cron
   cannot fetch. Instead a puller server with a fixed, allow-listed IP runs `scripts/tsd/push_bodyshop.py`
   hourly and POSTs the extract to `/api/ingest` (bearer `INGEST_TOKEN`). Setup: `deploy/puller/` and
-  `docs/IT-HANDOVER.md`. (Until 2026-11 this was the third-party droplet `drivo-push`, 143.244.161.163; retired.) The Worker's 07:00 cron
-  and "Refresh now" rebuild the day's tasks/snapshot from the latest push.
+  `docs/IT-HANDOVER.md`. (Until 2026-11 this was the third-party droplet `drivo-push`, 143.244.161.163; retired.)
+  Since 2026-11-25 the Worker instead **pulls** the extract hourly (:25) from the corporate portal (corporate.drivo.com runs the
+  same puller at :20 and serves the result; secret `DRIVO_EXTRACT_TOKEN`, code `src/worker/extract.ts`). "Refresh now" pulls on
+  demand. 07:25 New York the cron also rebuilds the day's tasks/snapshot. Pushes to `/api/ingest` keep working.
 - `RentalSource`/`TsdSource` from the brief became `scripts/tsd/bodyshop.sql` (the only TSD-touching code, SELECTs only,
   guarded by `tests/tsd-readonly.test.ts`) + `src/shared/normalize.ts` (all field mapping). `SampleFileSource` is
   `data/sample.json`, an anonymised real extract (`scripts/tsd/make_sample.py`), served when `USE_SAMPLE_DATA=true`.

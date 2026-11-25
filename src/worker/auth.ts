@@ -1,6 +1,8 @@
 // Built-in login: email + password accounts managed by admins inside the dashboard, HMAC-signed
-// HttpOnly cookie sessions. Replaces Cloudflare Access (which needs a card on file). If Access is
-// ever put in front, its Cf-Access-Authenticated-User-Email header is still honoured.
+// HttpOnly cookie sessions. Replaces Cloudflare Access (which needs a card on file).
+// Identity comes ONLY from our signed cookie (or DEV=true locally). Request headers such as
+// Cf-Access-Authenticated-User-Email are never trusted: without Access in front of the Worker any
+// client can send them. If Access is added later it works as an extra gate, and users still sign in here.
 import type { Env } from './env';
 import type { Me, User } from '@shared/types';
 
@@ -187,20 +189,14 @@ export async function login(env: Env, email: string, password: string, ip: strin
 // ---------- Identity for a request ----------
 
 export async function identify(env: Env, req: ReqLike, adminEmails: string[]): Promise<Me | null> {
-  // 1. Cloudflare Access, if it is ever enabled in front of the Worker.
-  const accessEmail = req.header('cf-access-authenticated-user-email')?.toLowerCase();
-  if (accessEmail) {
-    const u = await getUser(env, accessEmail);
-    return { email: accessEmail, name: u?.name ?? nameOf(accessEmail), isAdmin: !!u?.is_admin || adminEmails.includes(accessEmail), mustChangePassword: false };
-  }
-  // 2. Our own session cookie.
+  // 1. Our own signed session cookie (the user must still exist and be active).
   const email = await readSession(env, req);
   if (email) {
     const u = await getUser(env, email);
     if (u && u.active) return { email: u.email, name: u.name, isAdmin: !!u.is_admin || adminEmails.includes(u.email), mustChangePassword: !!u.must_change_pw };
     return null;
   }
-  // 3. Local development without a login.
+  // 2. Local development without a login.
   if (env.DEV === 'true') {
     const email = (req.header('x-dev-user') ?? 'dev@drivo.com').toLowerCase();
     return { email, name: nameOf(email), isAdmin: true, mustChangePassword: false };

@@ -32,7 +32,7 @@ export const api = {
   me: () => call<Me>('/api/me'),
   status: () => call<Status>('/api/status'),
   data: () => call<DataResponse>('/api/data'),
-  refresh: () => call<{ ok: boolean; tasksCreated: number }>('/api/refresh', { method: 'POST' }),
+  refresh: () => call<{ ok: boolean; tasksCreated: number; pull: RefreshPull }>('/api/refresh', { method: 'POST' }),
   tasks: (date?: string) => call<Task[]>(`/api/tasks${date ? `?date=${date}` : ''}`),
   tasksRange: (from: string, to: string) => call<Task[]>(`/api/tasks?from=${from}&to=${to}`),
   tasksForRental: (ra: string) => call<Task[]>(`/api/tasks/rental/${encodeURIComponent(ra)}`),
@@ -49,6 +49,13 @@ export const api = {
   saveAlias: (body: { alias: string; canonical: string; kind: 'bodyshop' | 'insurer' }) => call<{ ok: boolean }>('/api/settings/aliases', { method: 'PUT', body: JSON.stringify(body) }),
   deleteAlias: (alias: string) => call<{ ok: boolean }>(`/api/settings/aliases/${encodeURIComponent(alias)}`, { method: 'DELETE' }),
 };
+
+/** What "Refresh now" did with the corporate portal's TSD extract. */
+export type RefreshPull =
+  | { pulled: 'not_configured' }
+  | { pulled: 'unchanged'; fetchedAt: string }
+  | { pulled: 'loaded'; fetchedAt: string; rentals: number; tasksCreated: number }
+  | { pulled: 'failed'; error: string };
 
 export interface SettingsResponse {
   rules: RulesConfig;

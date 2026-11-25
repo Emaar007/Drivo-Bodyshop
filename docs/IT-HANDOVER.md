@@ -32,7 +32,7 @@ database 42295, port 1433                          hourly at :15                
 | 2 | **Outbound network access** | TCP **1433** to `azure-sql-tsd-drivo.database.windows.net` (Azure SQL may also redirect to other Azure hosts on 11000-11999; allow those if outbound traffic is filtered). TCP **443** to the dashboard URL. No inbound ports are needed. |
 | 3 | **The server's IP on the TSD Azure SQL firewall** | Whoever administers that Azure SQL server adds it. That is probably TSD support, unless Drivo has Azure admin access itself. Ask at the same time for the old IP `143.244.161.163` to be **removed** (see "Security clean-up"). |
 | 4 | **TSD SQL credentials** | Ask TSD for a **read-only** login (example request below). Until then the existing `tsddrivoadmin` login works, but it has full write access. |
-| 5 | **Dashboard URL** | For example `https://drivo-bodyshop-dashboard.<account>.workers.dev` or a custom domain. |
+| 5 | **Dashboard URL** | For example `https://bodyshop.drivorental.workers.dev` or a custom domain. |
 | 6 | **Access to the Cloudflare account** that hosts the dashboard | Needed once, to set a new ingest token (step 3 below). The old token sits on the third-party server, so replace it. |
 
 ## Install (Ubuntu / Debian)

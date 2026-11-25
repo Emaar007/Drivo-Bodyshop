@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "drivo-bodyshop-dashboard",
+  "name": "bodyshop",
   "main": "src/worker/index.ts",
   "compatibility_date": "2026-10-01",
   "compatibility_flags": ["nodejs_compat"],
@@ -15,14 +15,14 @@
       "binding": "DB",
       "database_name": "drivo-bodyshop",
       // Replace with the id printed by: npx wrangler d1 create drivo-bodyshop
-      "database_id": "45557a68-7749-49fd-812e-e1fb7c2cc92c",
+      "database_id": "fb962134-7b9e-4af9-8bd6-cd077e4e495d",
       "migrations_dir": "migrations"
     }
   ],
   "triggers": {
-    // 07:00 America/New_York = 11:00 UTC (EDT) / 12:00 UTC (EST). Both fire; the
-    // handler only builds the day's tasks once per New York date.
-    "crons": ["0 11,12 * * *"]
+    // Every hour at :25, five minutes after the corporate portal refreshes its TSD extract: pulls it
+    // (when the DRIVO_EXTRACT_TOKEN secret is set) and, at 07:25 New York time, builds the day's tasks.
+    "crons": ["25 * * * *"]
   },
   "vars": {
     "DUE_SOON_DAYS": "3",
@@ -30,8 +30,9 @@
     // When "true" the Worker serves the anonymised data/sample.json instead of the D1 snapshot
     // (used before the first TSD push). Set to "false" in production.
     "USE_SAMPLE_DATA": "false",
-    "ADMIN_EMAILS": "mohamed@drivo.com"
+    "ADMIN_EMAILS": "michael.a@drivo.com"
   },
   "observability": { "enabled": true }
-  // Secrets (wrangler secret put ...): INGEST_TOKEN (shared with scripts/tsd/push_bodyshop.py)
+  // Secrets (wrangler secret put ...): INGEST_TOKEN (for pushes to /api/ingest), SESSION_SECRET,
+  // DRIVO_EXTRACT_TOKEN (corporate portal extract; the hourly pull). Optional var DRIVO_EXTRACT_URL.
 }

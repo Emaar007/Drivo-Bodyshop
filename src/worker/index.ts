@@ -5,11 +5,12 @@ import {
   AuthError, clearSessionCookie, createSessionCookie, createUser, deleteUser, getUser, identify, listUsers, login, updateUser, userCount, verifyPassword,
 } from './auth';
 import { invalidateCache, latestIngest, loadDataset, loadSettings, storeIngest, validatePayload } from './data';
+import { DEFAULT_EXTRACT_URL, ExtractError, fetchExtract, isNewer } from './extract';
 import {
   applyTaskAction, createManualTask, ensureTasks, listEvents, listSnapshots, listTasks, listTasksRange, saveSnapshot, tasksForRental, type TaskAction,
 } from './tasks';
 import { nowLocalIn, todayIn } from '@shared/dates';
-import type { Me, Status, TeamNote } from '@shared/types';
+import type { Me, Status, TeamNote, TsdPayload } from '@shared/types';
 import { normalizeKey } from '@shared/normalize';
 
 type App = { Bindings: Env; Variables: { me: Me } };
@@ -30,15 +31,36 @@ app.post('/api/ingest', async (c) => {
   if (!c.env.INGEST_TOKEN || token !== c.env.INGEST_TOKEN) return c.json({ error: 'bad token' }, 401);
   const body = await c.req.json().catch(() => null);
   if (!validatePayload(body)) return c.json({ error: 'payload shape not recognised' }, 400);
-  const ingestId = await storeIngest(c.env, body);
-  const settings = await loadSettings(c.env);
+  const r = await ingest(c.env, body);
+  return c.json({ ok: true, ...r, rentals: body.rentals.length });
+});
+
+/** Store a TSD payload, then rebuild today's snapshot and tasks from it. */
+async function ingest(env: Env, body: TsdPayload): Promise<{ ingestId: number; tasksCreated: number; today: string }> {
+  const ingestId = await storeIngest(env, body);
+  const settings = await loadSettings(env);
   const nowLocal = nowLocalIn(settings.rules.timezone);
   const today = nowLocal.slice(0, 10);
-  const { dataset } = await loadDataset(c.env, nowLocal);
-  await saveSnapshot(c.env, dataset, today, ingestId, settings.rules);
-  const { created } = await ensureTasks(c.env, dataset, today, settings.rules);
-  return c.json({ ok: true, ingestId, rentals: body.rentals.length, tasksCreated: created, today });
-});
+  const { dataset } = await loadDataset(env, nowLocal);
+  await saveSnapshot(env, dataset, today, ingestId, settings.rules);
+  const { created } = await ensureTasks(env, dataset, today, settings.rules);
+  return { ingestId, tasksCreated: created, today };
+}
+
+type PullResult =
+  | { pulled: 'not_configured' }
+  | { pulled: 'unchanged'; fetchedAt: string }
+  | { pulled: 'loaded'; fetchedAt: string; rentals: number; tasksCreated: number };
+
+/** Download the latest extract from the corporate portal and load it if TSD produced a newer one. */
+async function pullFromPortal(env: Env): Promise<PullResult> {
+  if (!env.DRIVO_EXTRACT_TOKEN) return { pulled: 'not_configured' };
+  const payload = await fetchExtract(env.DRIVO_EXTRACT_URL || DEFAULT_EXTRACT_URL, env.DRIVO_EXTRACT_TOKEN);
+  const last = await latestIngest(env);
+  if (!isNewer(payload, last?.fetched_at ?? null)) return { pulled: 'unchanged', fetchedAt: payload.fetchedAt };
+  const r = await ingest(env, payload);
+  return { pulled: 'loaded', fetchedAt: payload.fetchedAt, rentals: payload.rentals.length, tasksCreated: r.tasksCreated };
+}
 
 // ---------- Login (built-in accounts; see auth.ts) ----------
 const isSecure = (c: { req: { url: string } }) => c.req.url.startsWith('https://');
@@ -69,11 +91,17 @@ app.post('/api/auth/logout', (c) => {
 });
 
 // ---------- Everything below needs a signed-in user ----------
+// No session needed (ingest has its own bearer token). /api/auth/password is NOT here: it needs the signed-in user.
+const PUBLIC_PATHS = new Set(['/api/ingest', '/api/auth/setup', '/api/auth/login', '/api/auth/logout']);
+const MUST_CHANGE_ALLOWED = new Set(['/api/me', '/api/auth/password']);
+
 app.use('/api/*', async (c, next) => {
-  if (c.req.path === '/api/ingest' || c.req.path.startsWith('/api/auth/')) return next();
+  if (PUBLIC_PATHS.has(c.req.path)) return next();
   const settings = await loadSettings(c.env);
   const me = await identify(c.env, c.req, settings.adminEmails);
   if (!me) throw new AuthError('Not signed in');
+  // A user whose password was set by an admin must change it before using anything else.
+  if (me.mustChangePassword && !MUST_CHANGE_ALLOWED.has(c.req.path)) return c.json({ error: 'Change your password first' }, 403);
   c.set('me', me);
   await next();
 });
@@ -84,7 +112,7 @@ app.post('/api/auth/password', async (c) => {
   const me = c.get('me');
   const body = (await c.req.json()) as { current: string; next: string };
   const u = await getUser(c.env, me.email);
-  if (!u) return c.json({ error: 'No local account (signed in through Access)' }, 400);
+  if (!u) return c.json({ error: 'No local account' }, 400);
   if (!(await verifyPassword(body.current ?? '', u.password_hash))) return c.json({ error: 'Current password is wrong' }, 400);
   await updateUser(c.env, me.email, { password: body.next, mustChange: false });
   return c.json({ ok: true });
@@ -135,12 +163,19 @@ app.get('/api/data', async (c) => {
   return c.json({ ...dataset, receivedAt, rules: settings.rules });
 });
 
-// "Refresh now": rebuilds today's tasks and snapshot from the latest push. The push itself runs on
-// the puller server (the Worker cannot reach Azure SQL). Rate-limited to once a minute.
+// "Refresh now": fetches the latest extract from the corporate portal (when DRIVO_EXTRACT_TOKEN is set),
+// then rebuilds today's tasks and snapshot. The Worker never queries TSD itself. Rate-limited to once a minute.
 let lastRefresh = 0;
 app.post('/api/refresh', async (c) => {
   if (Date.now() - lastRefresh < 60_000) return c.json({ error: 'Please wait a minute between refreshes' }, 429);
   lastRefresh = Date.now();
+  let pull: PullResult | { pulled: 'failed'; error: string };
+  try {
+    pull = await pullFromPortal(c.env);
+  } catch (e) {
+    if (!(e instanceof ExtractError)) throw e;
+    pull = { pulled: 'failed', error: e.message };
+  }
   invalidateCache();
   const settings = await loadSettings(c.env);
   const nowLocal = nowLocalIn(settings.rules.timezone);
@@ -148,7 +183,7 @@ app.post('/api/refresh', async (c) => {
   const today = nowLocal.slice(0, 10);
   if (ingestId !== null) await saveSnapshot(c.env, dataset, today, ingestId, settings.rules);
   const { created } = await ensureTasks(c.env, dataset, today, settings.rules);
-  return c.json({ ok: true, tasksCreated: created });
+  return c.json({ ok: true, tasksCreated: created, pull });
 });
 
 // ---------- Tasks ----------
@@ -302,12 +337,19 @@ app.get('*', (c) => c.env.ASSETS.fetch(c.req.raw));
 
 export default {
   fetch: app.fetch,
-  // Cron: 07:00 New York. Both UTC hours in wrangler.jsonc fire; only the one that is 07:00 locally does work.
+  // Cron (wrangler.jsonc): every hour at :25, five minutes after the corporate portal refreshes its extract.
+  // 1. Pull the extract when DRIVO_EXTRACT_TOKEN is set (loading it rebuilds the snapshot and tasks).
+  // 2. At 07:xx New York time, rebuild the day's tasks and snapshot even if nothing new arrived.
   async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext) {
-    const settings = await loadSettings(env);
-    const nowLocal = nowLocalIn(settings.rules.timezone);
-    if (nowLocal.slice(11, 13) !== '07') return;
     ctx.waitUntil((async () => {
+      try {
+        console.log('portal pull', JSON.stringify(await pullFromPortal(env)));
+      } catch (e) {
+        console.error('portal pull failed:', e instanceof Error ? e.message : String(e));
+      }
+      const settings = await loadSettings(env);
+      const nowLocal = nowLocalIn(settings.rules.timezone);
+      if (nowLocal.slice(11, 13) !== '07') return;
       const today = nowLocal.slice(0, 10);
       const { dataset, ingestId } = await loadDataset(env, nowLocal);
       if (ingestId !== null) await saveSnapshot(env, dataset, today, ingestId, settings.rules);

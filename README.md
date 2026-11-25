@@ -4,17 +4,23 @@ Catches body shop rentals that are overdue or about to be due, shows who owes wh
 team's follow-up work. Runs on Cloudflare (Workers + D1, free tier); data comes from TSD's Azure SQL
 database through a small read-only push script.
 
+Live at **https://bodyshop.drivorental.workers.dev** (Worker `bodyshop`, Cloudflare account subdomain `drivorental`).
+
 ## Data flow
 
 ```
-TSD (Azure SQL 42295)  --SELECT only-->  puller server (hourly)    --POST /api/ingest-->  Cloudflare Worker + D1  -->  React app
-                                           scripts/tsd/push_bodyshop.py                      src/worker                  src/app
+TSD (Azure SQL 42295) --SELECT only--> corporate portal server (corporate.drivo.com)  <--GET hourly at :25--  Cloudflare Worker + D1  -->  React app
+                                        runs scripts/tsd/push_bodyshop.py at :20,       (DRIVO_EXTRACT_TOKEN)   src/worker                  src/app
+                                        serves the latest extract
 ```
 
-- **Why a push and not a Worker cron fetch:** the Azure SQL firewall allow-lists IPs. Cloudflare Workers
-  have no fixed IP, so the Worker cannot connect. A puller server with a fixed, allow-listed IP runs the
-  extraction and posts the JSON (setup: `docs/IT-HANDOVER.md`). The Worker's own cron (07:00
-  New York) only builds the day's task list and snapshot from the latest push.
+- **The Worker pulls the extract from the corporate portal**, not from TSD. The Azure SQL firewall allow-lists IPs and
+  Workers have no fixed IP, so the portal's server (already on the firewall) runs this repo's read-only puller every
+  hour at :20 and keeps the result. The Worker's cron (every hour at :25) downloads it with the `DRIVO_EXTRACT_TOKEN`
+  secret and loads it only if TSD produced a newer one; "Refresh now" does the same on demand. Code: `src/worker/extract.ts`.
+- At 07:25 New York time the cron also builds the day's task list and snapshot, even if nothing new arrived.
+- **Pushes still work:** anything with the `INGEST_TOKEN` can POST an extract to `/api/ingest` (the puller in
+  `deploy/puller/`, see `docs/IT-HANDOVER.md`, or `scripts/tsd/pull_extract.mjs` by hand).
 - `scripts/tsd/bodyshop.sql` is the only place that touches TSD. It contains SELECTs only; the connection
   is opened read-only; `tests/tsd-readonly.test.ts` fails if a write statement is ever added.
 - Field mapping TSD -> app lives in `scripts/tsd/bodyshop.sql` (columns) and `src/shared/normalize.ts`
@@ -60,15 +66,18 @@ fresh anonymised `data/sample.json`.
 1. `npx wrangler login`
 2. `npx wrangler d1 create drivo-bodyshop` -> paste the id into `wrangler.jsonc` (`database_id`).
 3. `npm run db:migrate:remote`
-4. `npx wrangler secret put INGEST_TOKEN` (any long random string; the puller server gets the same value).
+4. `npx wrangler secret put INGEST_TOKEN` (any long random string; only needed by whatever pushes to `/api/ingest`).
+   `npx wrangler secret put DRIVO_EXTRACT_TOKEN` (the corporate portal's extract token; turns on the hourly pull).
 5. `openssl rand -hex 32 | npx wrangler secret put SESSION_SECRET` (signs the login cookie).
 6. Optionally `wrangler.jsonc` vars: `ADMIN_EMAILS` (comma-separated fallback admins). Keep `USE_SAMPLE_DATA` `"false"`.
 7. `npm run deploy`
 8. **Login**: open the URL. With no accounts yet it shows a one-time "first-time setup" form that creates the first
    admin. Admins add the rest of the team under Settings -> Users (temporary password, changed at first sign-in).
    Sessions are HMAC-signed HttpOnly cookies (7 days); 8 failed attempts per email/IP lock login for 15 minutes.
-   Cloudflare Access was the original plan but its free plan needs a card on file; if it is ever enabled in front of
-   the Worker, its `Cf-Access-Authenticated-User-Email` header is honoured automatically.
+   Cloudflare Access was the original plan but its free plan needs a card on file. Identity comes only from the
+   signed login cookie: headers such as `Cf-Access-Authenticated-User-Email` are ignored, because without Access in
+   front any client could send them. If Access is added later it is an extra gate; users still sign in here.
+   A user whose password an admin set must change it before the API serves anything else.
    `/api/ingest` skips the login and is protected by the bearer token instead.
 
 ### Data puller (TSD -> dashboard)
